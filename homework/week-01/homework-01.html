@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Homework 01</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.6;
+      margin: 2rem auto;
+      max-width: 980px;
+      padding: 0 1.5rem;
+      color: #1f2937;
+      background: #ffffff;
+    }
+    h1, h2, h3 {
+      color: #111827;
+      margin-top: 1.5em;
+      margin-bottom: 0.5em;
+    }
+    h1 { font-size: 2em; }
+    h2 { font-size: 1.5em; }
+    h3 { font-size: 1.2em; }
+    p, li { font-size: 1rem; }
+    pre {
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      background: #f3f4f6;
+      padding: 0.1rem 0.3rem;
+      border-radius: 4px;
+    }
+    .answer {
+      margin-top: 0.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .math {
+      font-style: italic;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 1rem 0;
+    }
+    th, td {
+      border: 1px solid #d1d5db;
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f9fafb;
+    }
+  </style>
+</head>
+<body>
+  <h1>Homework 01</h1>
+
+  <h2>Question 1 (Least squares and matrix calculations)</h2>
+
+  <p>Set the random seed to 43201. Generate <span class="math">n = 100</span> observations with <span class="math">p = 5</span> predictors according to</p>
+
+  <p class="math">x<sub>ij</sub> 
+0 iid 
+0 N(0,1), 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 
+0 &epsilon;<sub>i</sub> iid N(0,0.7<sup>2</sup>),</p>
+
+  <p>with all predictors and errors generated independently. Let</p>
+
+  <p class="math">X = [1, x<sub>1</sub>, ..., x<sub>5</sub>] and β = (3, 1.4, -0.9, 0.7, 0, 1.1)<sup>T</sup>.</p>
+
+  <p>Generate y = Xβ + ε.</p>
+
+  <h3>a. Generate the data and report the dimensions and rank of X. Calculate the least-squares estimate β̂ using a numerically stable least-squares routine, without explicitly calculating (X<sup>T</sup>X)<sup>-1</sup>. Compare the estimates with the coefficients used to generate the data.</h3>
+
+  <pre><code>set.seed(43201)
+n &lt;- 100
+p &lt;- 5
+x &lt;- matrix(rnorm(n * p), nrow = n, ncol = p)
+epsilon &lt;- rnorm(n, mean = 0, sd = 0.7)
+X &lt;- cbind(1, x)
+beta &lt;- c(3, 1.4, -0.9, 0.7, 0, 1.1)
+y &lt;- as.vector(X %*% beta + epsilon)
+
+dim(X)
+qr(X)$rank
+
+LSE &lt;- lm.fit(X, y)$coefficients
+LSE
+
+compare &lt;- data.frame(
+  Coefficient = c("Intercept", "X1", "X2", "X3", "X4", "X5"),
+  True = beta,
+  Estimated = LSE,
+  Difference = LSE - beta
+)
+compare</code></pre>
+
+  <p class="answer">The design matrix has dimensions <span class="math">100 × 6</span>, and its rank is 6 under the generated data. The least-squares estimate is obtained using <code>lm.fit(X, y)</code>, which is numerically stable and does not explicitly invert <span class="math">X<sup>T</sup>X</span>. The estimated coefficients are close to the true regression coefficients, with small differences caused by random noise. This is expected because the model is correctly specified and the sample size is moderate.</p>
+
+  <h3>b. Calculate the fitted values, the residual vector r = y − Xβ̂, and the training RMSE.</h3>
+
+  <pre><code>y_hat &lt;- as.vector(X %*% LSE)
+r &lt;- y - y_hat
+rmse &lt;- sqrt(mean(r^2))
+rmse</code></pre>
+
+  <p class="answer">The fitted values are <span class="math">ŷ = Xβ̂</span>, the residual vector is <span class="math">r = y − ŷ</span>, and the training RMSE is</p>
+
+  <p class="math">RMSE = sqrt((1/n) Σ r<sub>i</sub><sup>2</sup>).</p>
+
+  <p>This quantity measures the typical size of the residuals on the scale of the response.</p>
+
+  <h3>c. Report ||X<sup>T</sup>r||<sub>∞</sub>. Explain why this value should be close to zero and what it tells us about the residual vector.</h3>
+
+  <pre><code>X_transpose_r &lt;- t(X) %*% r
+infinity_norm &lt;- max(abs(X_transpose_r))
+
+X_transpose_r
+infinity_norm
+</code></pre>
+
+  <p class="answer">The value <span class="math">||X<sup>T</sup>r||<sub>∞</sub></span> should be very close to zero when the least-squares solution is computed correctly. This is because the residual vector is orthogonal to the columns of the design matrix at the least-squares optimum, so <span class="math">X<sup>T</sup>r = 0</span> in exact arithmetic. In practice it is tiny but not exactly zero because of numerical precision. This tells us that the residuals have no linear component in the column space of X, which is a defining property of least squares.</p>
+
+  <h2>Question 2 (Gaussian likelihood for linear regression)</h2>
+
+  <p>Continue with the data from Question 1. Suppose</p>
+
+  <p class="math">Y | X ~ N<sub>n</sub>(Xβ, σ<sup>2</sup>I<sub>n</sub>).</p>
+
+  <p>The log-likelihood, including the constant term, is</p>
+
+  <p class="math">ℓ(β, σ<sup>2</sup>) = -(n/2) log(2πσ<sup>2</sup>) - (1/(2σ<sup>2</sup>))(y − Xβ)<sup>T</sup>(y − Xβ).</p>
+
+  <h3>a. For fixed σ<sup>2</sup>, explain why maximizing ℓ(β, σ<sup>2</sup>) over β is equivalent to minimizing the residual sum of squares. What does this imply about the MLE of β?</h3>
+
+  <p class="answer">For fixed σ<sup>2</sup>, the only part of the Gaussian log-likelihood that depends on β is the quadratic term <span class="math">-(1 / (2σ<sup>2</sup>))(y − Xβ)<sup>T</sup>(y − Xβ)</span>. This is negative one-half times the residual sum of squares divided by σ<sup>2</sup>. Therefore, maximizing the likelihood is equivalent to minimizing the residual sum of squares. The maximum-likelihood estimate of β is the least-squares estimate, so the MLE matches the OLS solution when the Gaussian model is assumed.</p>
+
+  <h3>b. For fixed β, differentiate the log-likelihood with respect to σ<sup>2</sup> and derive the MLE. Calculate this estimate at β̂ and compare it with the unbiased estimate of σ<sup>2</sup>. Explain why the two denominators differ.</h3>
+
+  <pre><code>rss &lt;- sum(r^2)
+sigma2_MLE &lt;- rss / n
+sigma2_MLE
+sigma2_unbiased &lt;- rss / (n - ncol(X))
+sigma2_unbiased
+
+compare_variance &lt;- data.frame(
+  Estimate = c("MLE", "Unbiased"),
+  Sigma2 = c(sigma2_MLE, sigma2_unbiased)
+)
+compare_variance</code></pre>
+
+  <p class="answer">The MLE for σ<sup>2</sup> is</p>
+
+  <p class="math">σ̂<sub>MLE</sub><sup>2</sup> = RSS / n,</p>
+
+  <p>where RSS = (y − Xβ̂)<sup>T</sup>(y − Xβ̂). The unbiased estimate is</p>
+
+  <p class="math">σ̂<sub>unbiased</sub><sup>2</sup> = RSS / (n − p)</p>
+
+  <p>with <span class="math">p = 6</span> regression coefficients including the intercept, so the denominator is <span class="math">n − 6</span>. The MLE uses denominator <span class="math">n</span> and is biased downward because it ignores the fact that the fitted coefficients consume degrees of freedom. The unbiased estimator corrects for this by accounting for the number of estimated parameters.</p>
+
+  <h3>c. Let e<sub>x2</sub> = (0,0,1,0,0,0)<sup>T</sup>. Using the variance estimate from part b, plot ℓ(β̂ + t e<sub>x2</sub>, σ̂<sub>MLE</sub><sup>2</sup>) over a grid of t values from -1.25 to 1.25. State where the maximum occurs and explain why this agrees with the least-squares result.</h3>
+
+  <pre><code>e_x2 &lt;- c(0, 0, 1, 0, 0, 0)
+
+t_values &lt;- seq(-1.25, 1.25, length.out = 501)
+log_likelihood &lt;- numeric(length(t_values))
+
+for (i in seq_along(t_values)) {
+  beta_t &lt;- LSE + t_values[i] * e_x2
+  residual_t &lt;- y - X %*% beta_t
+  RSS_t &lt;- sum(residual_t^2)
+  log_likelihood[i] &lt;-
+    -n / 2 * log(2 * pi * sigma2_MLE) -
+    RSS_t / (2 * sigma2_MLE)
+}
+
+plot(
+  t_values,
+  log_likelihood,
+  type = "l",
+  xlab = "t",
+  ylab = "Log-likelihood",
+  main = "Log-likelihood vs. t"
+)
+
+max_index &lt;- which.max(log_likelihood)
+t_at_max &lt;- t_values[max_index]
+loglik_at_max &lt;- log_likelihood[max_index]
+
+t_at_max
+loglik_at_max</code></pre>
+
+  <p class="answer">The likelihood is maximized at <span class="math">t = 0</span>, which corresponds to β̂. This is exactly the least-squares estimate, because for fixed σ<sup>2</sup> the Gaussian log-likelihood is maximized when the residual sum of squares is minimized. Moving the coefficient away from its least-squares value increases the residual sum of squares and therefore lowers the likelihood.</p>
+
+  <h2>Question 3 (Starting values in nonconvex optimization)</h2>
+
+  <p>Consider the function</p>
+
+  <p class="math">f(x) = exp(1.5x) - 3(x + 6)<sup>2</sup> - 0.05x<sup>3</sup>,</p>
+
+  <p>with derivative</p>
+
+  <p class="math">f'(x) = 1.5 exp(1.5x) - 6(x + 6) - 0.15 x<sup>2</sup>.</p>
+
+  <h3>a. Plot f(x) over the interval [-40, 7]. Based on the plot, describe the important features of the objective function that may affect numerical optimization.</h3>
+
+  <pre><code>f &lt;- function(x) {
+  exp(1.5 * x) - 3 * (x + 6)^2 - 0.05 * x^3
+}
+f_prime &lt;- function(x) {
+  1.5 * exp(1.5 * x) - 6 * (x + 6) - 0.15 * x^2
+}
+
+curve(
+  f,
+  from = -40,
+  to = 7,
+  n = 1000,
+  xlab = "x",
+  ylab = "f(x)",
+  main = "Objective Function"
+)</code></pre>
+
+  <p class="answer">The important feature is that the function is nonconvex and has multiple stationary points. In particular, it has multiple local minima separated by a local maximum. This can affect optimization because starting values may lead the algorithm to different local solutions rather than a global optimum.</p>
+
+  <h3>b. Use BFGS to minimize f(x) twice, starting at x<sup>(0)</sup> = -15 and x<sup>(0)</sup> = 0. Supply f'(x) to the optimizer. For each run, report the final value of x, the final objective value, |f'(x)|, and whether the optimizer reported convergence.</h3>
+
+  <pre><code>result_1 &lt;- optim(
+  par = -15,
+  fn = f,
+  gr = f_prime,
+  method = "BFGS"
+)
+
+result_2 &lt;- optim(
+  par = 0,
+  fn = f,
+  gr = f_prime,
+  method = "BFGS"
+)
+
+x1 &lt;- result_1$par
+f1 &lt;- result_1$value
+grad1 &lt;- abs(f_prime(x1))
+converged1 &lt;- result_1$convergence == 0
+
+x2 &lt;- result_2$par
+f2 &lt;- result_2$value
+grad2 &lt;- abs(f_prime(x2))
+converged2 &lt;- result_2$convergence == 0
+
+results &lt;- data.frame(
+  Starting_Value = c(-15, 0),
+  Final_x = c(x1, x2),
+  Final_Objective = c(f1, f2),
+  Absolute_Gradient = c(grad1, grad2),
+  Converged = c(converged1, converged2)
+)
+
+results</code></pre>
+
+  <p class="answer">BFGS can converge to different points because the objective is nonconvex and the algorithm is not guaranteed to find the global optimum from every starting point. The run starting from a more negative value may settle at a lower region of the function. The lower objective value identifies the better local minimum, but additional evidence such as multiple starting values, derivative checks, or a global search would be needed before declaring it the global minimum.</p>
+
+  <h3>c. Explain why the two runs can converge to different answers. Which run gives the lower objective value? What additional evidence would be needed before claiming that this point is the global minimum?</h3>
+
+  <p class="answer">The two runs can converge to different answers because BFGS is a local optimization method. In a nonconvex function, the path followed by the optimizer depends on the starting point, so it may end in different basins of attraction. The run starting from a more negative value gives the lower objective value. Before claiming it is the global minimum, one would need additional evidence such as a grid search, multiple random starts, or a global optimization method to verify that no lower value exists elsewhere.</p>
+
+  <h2>Question 4 (Nearly collinear predictors)</h2>
+
+  <p>Continue with X and y from Question 1. Set the random seed to 43202 and generate</p>
+
+  <p class="math">u<sub>i</sub> iid N(0,1), i = 1,...,n.</p>
+
+  <p>Define</p>
+
+  <p class="math">x<sub>6</sub> = x<sub>1</sub> + 10<sup>-4</sup>u,</p>
+
+  <p class="math">X<sub>+</sub> = [X, x<sub>6</sub>]</p>
+
+  <p>and let</p>
+
+  <p class="math">y* = y + 10<sup>-3</sup>u.</p>
+
+  <h3>a. Fit y using X and X<sub>+</sub>. For each design matrix, report the condition number and training RMSE. For the augmented fit, also report the coefficients of x<sub>1</sub> and x<sub>6</sub>.</h3>
+
+  <pre><code>set.seed(43202)
+u &lt;- rnorm(n)
+x6 &lt;- x[, 1] + 1e-4 * u
+X_plus &lt;- cbind(X, x6)
+y_star &lt;- y + 1e-3 * u
+
+fit_X &lt;- lm.fit(X, y)
+beta_X &lt;- fit_X$coefficients
+
+fit_X_plus &lt;- lm.fit(X_plus, y)
+beta_X_plus &lt;- fit_X_plus$coefficients
+
+cond_X &lt;- kappa(X)
+cond_X_plus &lt;- kappa(X_plus)
+
+y_hat_X &lt;- as.vector(X %*% beta_X)
+y_hat_X_plus &lt;- as.vector(X_plus %*% beta_X_plus)
+RMSE_X &lt;- sqrt(mean((y - y_hat_X)^2))
+RMSE_X_plus &lt;- sqrt(mean((y - y_hat_X_plus)^2))
+
+beta_x1 &lt;- beta_X_plus[2]
+beta_x6 &lt;- beta_X_plus[7]
+
+q4a_results &lt;- data.frame(
+  Model = c("X", "X_plus"),
+  Condition_Number = c(cond_X, cond_X_plus),
+  Training_RMSE = c(RMSE_X, RMSE_X_plus)
+)
+q4a_results</code></pre>
+
+  <p class="answer">The augmented design matrix is nearly collinear because x<sub>6</sub> is almost the same as x<sub>1</sub>. The condition number increases substantially in the augmented model, and the individual coefficients of x<sub>1</sub> and x<sub>6</sub> become unstable because the model cannot distinguish the separate effects of two highly similar predictors. The training RMSEs are similar because the fitted values remain close, but the coefficient estimates themselves are very sensitive.</p>
+
+  <h3>b. Fit y* using X<sub>+</sub>. Report the changes in the coefficients of x<sub>1</sub> and x<sub>6</sub>. Compare the two fitted-value vectors using their root mean squared difference and maximum absolute difference.</h3>
+
+  <pre><code>fit_y_star &lt;- lm.fit(X_plus, y_star)
+beta_y_star &lt;- fit_y_star$coefficients
+
+beta_x1_original &lt;- beta_X_plus[2]
+beta_x6_original &lt;- beta_X_plus[7]
+beta_x1_new &lt;- beta_y_star[2]
+beta_x6_new &lt;- beta_y_star[7]
+
+change_x1 &lt;- beta_x1_new - beta_x1_original
+change_x6 &lt;- beta_x6_new - beta_x6_original
+
+y_hat_original &lt;- as.vector(X_plus %*% beta_X_plus)
+y_hat_star &lt;- as.vector(X_plus %*% beta_y_star)
+fitted_RMSD &lt;- sqrt(mean((y_hat_star - y_hat_original)^2))
+max_abs_difference &lt;- max(abs(y_hat_star - y_hat_original))
+</code></pre>
+
+  <p class="answer">The coefficients of x<sub>1</sub> and x<sub>6</sub> can change substantially even when the fitted values change very little. This happens because in nearly collinear designs, the model can move the coefficient mass between the two highly similar predictors while holding the summed effect nearly constant. The root mean squared difference and maximum absolute difference between the fitted-value vectors remain small, indicating that the combined effect is stable but the decomposition into separate effects is not.</p>
+
+  <h3>c. Use the identity y* − y = 10(x<sub>6</sub> − x<sub>1</sub>) to explain why the fitted values change very little while the two coefficients change substantially. What does this example suggest about interpreting separate effects for nearly collinear predictors?</h3>
+
+  <p class="answer">Because x<sub>6</sub> is nearly identical to x<sub>1</sub>, the difference x<sub>6</sub> − x<sub>1</sub> is tiny. Therefore, y* − y = 10(x<sub>6</sub> − x<sub>1</sub>) is a small perturbation, so the fitted values only change a little. However, the coefficient estimates are not separately identifiable in a stable way: the model can allocate the same total effect between x<sub>1</sub> and x<sub>6</sub> in different ways, causing large coefficient changes even when the fitted values remain almost the same. This example shows that separate effects for nearly collinear predictors are often difficult to interpret reliably.</p>
+
+  <h2>Question 5 (Data preparation and summary statistics)</h2>
+
+  <p>The file <code>data/data-manipulation.csv</code> is a small constructed data table containing an observation identifier, a group label, two numeric predictors, and a response. Some response values are missing. For analyses involving the response, use only observations with a recorded response. Do not replace a missing response with zero or a group mean.</p>
+
+  <h3>a. Read the data and report its dimensions, column types, number of duplicated identifiers, and number of missing values in each column. Create an analysis table containing only observations with a recorded response, and define feature_sum = x1 + x2.</h3>
+
+  <pre><code>dat &lt;- read.csv("data/data-manipulation.csv")
+
+dim(dat)
+str(dat)
+sum(duplicated(dat$observation_id))
+colSums(is.na(dat))
+analysis &lt;- dat[!is.na(dat$response), ]
+analysis$feature_sum &lt;- analysis$x1 + analysis$x2
+head(analysis)</code></pre>
+
+  <p class="answer">The analysis should start by reading the raw CSV, checking dimensions and structure, and removing any rows with missing responses before conducting any response-related analyses. The derived variable <span class="math">feature_sum = x1 + x2</span> is created on the retained complete-response dataset.</p>
+
+  <h3>b. For each group, report the number of observations, the mean response, and the mean of feature_sum. State clearly which observations these summaries describe.</h3>
+
+  <p class="answer">These summaries describe the set of observations with a recorded response only, after excluding any row with a missing response. For each group, the summary should report the number of retained observations, mean response, and mean of the derived feature sum among those retained rows.</p>
+
+  <h3>c. Sort the analysis table by response from largest to smallest and report the first three rows, including observation_id, group, response, and feature_sum. Add code checks verifying that the number of retained rows equals the number of nonmissing responses in the original data, that the analysis table has no missing response values, and that its identifiers are unique.</h3>
+
+  <pre><code>analysis_sorted &lt;- analysis[order(analysis$response, decreasing = TRUE), ]
+head(analysis_sorted[, c("observation_id", "group", "response", "feature_sum")], 3)
+
+stopifnot(nrow(analysis) == sum(!is.na(dat$response)))
+stopifnot(!any(is.na(analysis$response)))
+stopifnot(!anyDuplicated(analysis$observation_id))</code></pre>
+
+  <p class="answer">The sorted analysis table should be ordered by response in descending order, and the first three rows should show the largest responses with their identifiers, groups, and derived feature sums. The checks confirm that the complete-case analysis was formed properly and that the retained identifiers are valid for downstream analysis.</p>
+
+  <h2>Question 6 (Can 39 million Fitbit records represent US adults?)</h2>
+
+  <p><a href="https://doi.org/10.1038/s41591-026-04352-3">Patten et al. (2026)</a> describe Fitbit data from 59,018 participants in the All of Us Research Program. The dataset spans 14 years and contains more than 39 million daily step records. Participants contributed data through one of two routes:</p>
+
+  <ul>
+    <li>Bring Your Own Device (BYOD): participants shared data from a Fitbit they already owned.</li>
+    <li>Wearables Enhancing All of Us Research (WEAR): invited participants received a Fitbit at no cost.</li>
+  </ul>
+
+  <p>In the general activity cohort, the BYOD and WEAR groups contained 32,035 and 22,474 participants, respectively. The BYOD value is listed first in each comparison below:</p>
+
+  <ul>
+    <li>77.3% versus 55.1% reported being White;</li>
+    <li>6.1% versus 15.2% reported annual household income between $10,000 and $25,000; and</li>
+    <li>median daily steps were 6,867 versus 5,797.</li>
+  </ul>
+
+  <p>Suppose the target is the mean of the participant-specific average daily step counts among US adults during the study period, with each adult given equal weight. A researcher writes:</p>
+
+  <blockquote>“This dataset contains more than 39 million daily Fitbit records. Therefore, the average of all recorded step counts should provide an accurate estimate of mean daily activity among US adults.”</blockquote>
+
+  <h3>a. Are the 39 million daily records independent observations? What characteristics or behaviors could cause some participants to contribute more recorded days than others? Explain how averaging all recorded days would then weight participants unequally.</h3>
+
+  <p class="answer">No. The 39 million daily records are not independent observations because many records come from the same participants. Some participants may contribute more recorded days than others because they used the device for longer, shared more data, wore it consistently, or had fewer missing recordings. If one participant contributes many more days than another, then averaging all daily records gives that person more weight. This does not match the target, which gives each adult equal weight.</p>
+
+  <h3>b. BYOD participants reported a median of 6,867 daily steps, compared with 5,797 among WEAR participants. Does this comparison show that already owning a Fitbit causes people to walk more? Explain your answer and give at least one plausible alternative explanation based on how participants entered the two groups.</h3>
+
+  <p class="answer">No. The higher median for BYOD participants does not show that owning a Fitbit causes people to walk more. Participants were not randomly assigned to BYOD or WEAR. BYOD participants already owned a Fitbit and chose to share their data, while WEAR participants were invited to participate and received a Fitbit at no cost. BYOD participants may have already been more interested in fitness or physical activity, so the observed difference could reflect selection rather than causation.</p>
+
+  <h3>c. A very large dataset can still produce a biased estimate of a population quantity when the people and observations entering the dataset are selected. Using this study, explain how selection of both participants and recorded days could make the observed data differ from the US adult population. Why might the naive average of all recorded daily step counts fail to estimate the stated target? You do not need to determine the direction of the bias.</h3>
+
+  <p class="answer">A large dataset does not eliminate selection bias. The participants who contributed Fitbit data may differ from the overall US adult population, and the number of recorded days also varies across participants. Those who contribute more days are weighted more heavily in a naive average of daily step counts, so the resulting estimate can differ from the target population quantity, which is defined as the mean of participant-specific average daily steps with equal weight per adult. The observed sample may overrepresent certain subgroups or behaviors, and the naive average may therefore fail to estimate the target even though the dataset is large.</p>
+
+  <p><strong>Source:</strong> Patten, T., Preble, E. A., Master, H., et al. (2026). <em>The All of Us Research Program's wearables dataset</em>. <em>Nature Medicine</em>, 32, 2302–2310.</p>
+</body>
+</html>
