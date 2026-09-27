@@ -1,107 +1,32 @@
 ---
-name: stat432-fall2026-student
-description: Set up the required GitHub folders or check and submit discussion questions, homework reports, and final-project files. Use this skill only when the student asks to set up those folders, check the technical format of one of these files, or submit it; do not use it to review substantive content.
-metadata:
-  version: "1.0.0"
+name: stat432-plot-formatting
+description: Improve the formatting of STAT 432 homework plots only when the user explicitly requests this skill. Use it only for presentation improvements in R or Python plots, not for changing analysis or model results.
 ---
 
-# Student Repository Rules
+# STAT 432 Plot Formatting Skill
 
-Inspect content only as needed for mechanical format checks such as frontmatter, word count, markup balance, file type, self-containment, and page count. Do not evaluate, revise, summarize, or judge the substantive question, answers, analysis, or report.
+Use this skill only when the user explicitly asks to improve a STAT 432 homework plot. Do not apply it automatically to unrelated plots or analysis tasks.
 
-`NN` always means a two-digit week number. Work only in the intended repository. Preserve unrelated files and Git history. Never expose credentials, rewrite history, or force-push.
+## Purpose
 
-## Repository Structure
+Improve readability, polish, and consistency for plots produced as part of STAT 432 homework. The goal is to make figures cleaner and easier to read without changing the underlying data or statistical conclusions.
 
-```text
-repository-root/
-|-- .gitignore
-|-- discussion/
-|   `-- week-NN-question.md
-|-- homework/
-|   `-- week-NN/
-|       `-- homework-NN.pdf or homework-NN.html
-`-- project/
-    |-- final-report.pdf or final-report.html
-    `-- appendix.pdf or appendix.html
-```
+## Formatting Rules
 
-The local Git root, remote repository, current branch, and upstream branch must identify the same intended project. Working files may remain in `homework/week-NN/`; only the numbered PDF or HTML report is the homework submission.
+- Margins: leave enough whitespace around the figure so titles, legends, labels, and annotations do not overlap. Keep margins balanced and consistent.
+- Titles: use a concise, informative title that reflects the content of the plot. Place it clearly above the plotting area and keep it readable without being overly long.
+- Axes: keep axes clean and readable. Use appropriate ranges, visible tick marks, and a consistent scale so the plot is not distorted.
+- Labels: ensure x- and y-axis labels are specific, readable, and aligned with the variable names or units. Use a font size that is large enough to read clearly.
+- Colors: use a restrained, high-contrast palette. Avoid overly bright, muddy, or similar colors that reduce legibility. Distinguish groups or series intentionally.
+- Sizes: increase point, line, label, and legend sizes when needed so the plot remains clear in a homework report or notebook. Keep the overall plot balanced and uncluttered.
 
-## `.gitignore`
+## Portable Guidance
 
-Use this root `.gitignore` during setup:
+- Apply these conventions to both R and Python plots.
+- Use standard formatting options that are portable across plotting systems, rather than relying on homework-specific or question-specific tweaks.
+- Preserve the original data and statistical intent while improving visual clarity.
+- If there is a tradeoff between aesthetics and readability, favor readability.
 
-```gitignore
-# Ignore everything at the repository root.
-/*
+## Example Use
 
-# Keep the submission structure.
-!/.gitignore
-!/discussion/
-!/homework/
-!/project/
-
-# Keep only weekly discussion questions.
-/discussion/*
-!/discussion/week-[0-9][0-9]-question.md
-
-# Keep only final weekly homework reports.
-/homework/*
-!/homework/week-[0-9][0-9]/
-/homework/week-[0-9][0-9]/*
-!/homework/week-[0-9][0-9]/homework-[0-9][0-9].pdf
-!/homework/week-[0-9][0-9]/homework-[0-9][0-9].html
-
-# Keep only final-project files.
-/project/*
-!/project/final-report.pdf
-!/project/final-report.html
-!/project/appendix.pdf
-!/project/appendix.html
-```
-
-The week number in a homework folder and report must still match; `.gitignore` cannot enforce that equality.
-
-## Discussion Question
-
-Use `discussion/week-NN-question.md` with exactly one YAML frontmatter block:
-
-```markdown
----
-id: wNN-student-id-short-topic
-title: "Question title"
-author: "Full Name (student-id)"
----
-
-Question body.
-```
-
-A valid file has:
-
-- the same two-digit `NN` in the filename and `id`;
-- required `id`, `title`, and `author`, with a stable `id` using only letters, numbers, hyphens, and underscores;
-- a title of at most 50 characters and a prose body of at most 200 words, excluding fenced code and mathematics;
-- one nonempty Markdown body after the frontmatter;
-- LaTeX uses `$...$` or `$$...$$`, with balanced delimiters and braces and no custom or unsafe commands;
-- code blocks use closed triple-backtick fences labeled `r` or `python`;
-- no content before the frontmatter, additional frontmatter, standalone `---` line, images, external links, raw HTML, or JavaScript; and
-- the Markdown file is saved as UTF-8 and ends with a newline after the final line.
-
-## Homework Submission
-
-Use `homework/week-NN/homework-NN.pdf` or one self-contained `homework-NN.html`. The folder and report must use the same `NN`, and the file must open successfully. The QMD source, solutions, data, and figures are working materials, not required submission files.
-
-## Final Project
-
-Use `project/final-report.pdf` or one self-contained `final-report.html`, limited to 20 pages. An appendix may be `project/appendix.pdf` or one self-contained `appendix.html`; for HTML, use browser print preview to check the report length.
-
-## Format and Submission Check
-
-- Report only mechanical format results; leave substantive review to the student.
-- The tracked path list matches the `.gitignore` allowlist; report extra tracked paths without reading or deleting them.
-- A fresh fetch confirms that the local branch is not behind or diverged from its upstream.
-- The staged file list contains only the intended submission files. Never use `git add .` or `git add -A` for a submission.
-- An existing submission may be replaced in its required location. Check the replacement's format and stage only the intended file. When changing between PDF and HTML, remove the previous version only with student approval.
-- `.gitignore` is committed during repository setup.
-- Commit and push require student approval. The remote branch must show the expected files and commit afterward.
+When a user requests: "Use the plot-formatting skill to improve this STAT 432 homework plot," revise the plot to improve margins, titles, axes, labels, colors, and sizing while keeping the figure faithful to the data.
