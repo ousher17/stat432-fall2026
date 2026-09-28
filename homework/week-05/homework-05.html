@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Homework 05</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; line-height: 1.6; margin: 2rem auto; max-width: 1100px; padding: 0 1.25rem; color: #222; }
+    h1, h2, h3 { color: #1d3557; }
+    code { background: #f6f8fa; padding: 0.15rem 0.3rem; border-radius: 4px; }
+    pre { background: #f6f8fa; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+    pre code { background: transparent; padding: 0; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #d0d7de; padding: 0.5rem 0.75rem; text-align: left; }
+    blockquote { border-left: 4px solid #cbd5e1; margin-left: 0; padding-left: 1rem; color: #475569; }
+    hr { border: 0; border-top: 1px solid #e2e8f0; margin: 2rem 0; }
+    img { max-width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+<p>Set a random seed before each simulation question and report it. You may use standard packages unless a question asks you to write the calculation yourself. Use equal neighbor weights throughout. Here $p$ counts the covariates used to measure distance; do not add an intercept column to a KNN predictor matrix. R and Python use different random-number generators, so their exact simulation results need not agree.</p>
+<h2 id="question-1-estimate-the-bias-and-variance-of-knn">Question 1: Estimate the bias and variance of KNN</h2>
+<p>In our previous homework, we used repeated simulations to study the behavior of linear regression estimators. We will now use the same idea for KNN. Consider the regression model</p>
+<p>$$
+Y_i=f(\mathbf X_i)+\epsilon_i,
+\qquad
+f(\mathbf x)=0.5x_1+\sin(x_2)-0.3x_3^2,
+$$</p>
+<p>where the three covariates are independent standard normal variables and $\epsilon_i\sim\mathcal N(0,0.1^2)$ independently of the covariates and other observations. Generate $n=400$ training observations. Our goal is to estimate the mean response at</p>
+<p>$$
+\mathbf x_0=(0.5,0.7,1)^{\mathsf T}.
+$$</p>
+<p>Use Euclidean distance and consider $k=1,3,5,\ldots,29$.</p>
+<p>a. Calculate $f(\mathbf x_0)$. Generate one training dataset and obtain the KNN prediction at $\mathbf x_0$ for each value of $k$.</p>
+<pre><code class="language-R">library(FNN)
+x0 &lt;- c(0.5, 0.7, 1)
+fx0 &lt;- 0.5*x0[1] + sin(x0[2]) - 0.3*x0[3]^2
+fx0
+set.seed(42302)
+n &lt;- 400
+X &lt;- matrix(rnorm(n * 3), nrow = n, ncol = 3)
+epsilon &lt;- rnorm(n, mean = 0, sd = 0.1)
+f &lt;- 0.5*X[,1] + sin(X[,2]) - 0.3*X[,3]^2
+Y &lt;- f + epsilon
+
+k_val &lt;- seq(1, 29, by = 2)
+pred_x0 &lt;- numeric(length(k_val))
+
+for (j in seq_along(k_val)) {
+
+  k &lt;- k_val[j]
+
+  pred_one[j] &lt;- knn.reg(
+    train = X,
+    test = matrix(x0, nrow = 1),
+    y = Y,
+    k = k
+  )$pred
+}
+
+data.frame(
+  k = k_val,
+  prediction = pred_x0
+)
+</code></pre>
+<p>b. Independently repeat the generation of the training covariates and responses 200 times. Within each repetition, use the same training data for every value of $k$. Store the predictions in a matrix with 200 rows and one column for each value of $k$. Use this matrix to estimate the bias, variance, and mean squared error of the estimated mean response. Use divisor 200 when calculating the empirical variance, and verify numerically that</p>
+<p>$$
+\text{mean squared error}
+=\text{squared bias}+\text{variance}.
+$$</p>
+<p>Plot squared bias, variance, and mean squared error against $k$ in one figure. Explain the pattern and compare it with the bias-variance trade-off for ridge regression or lasso.</p>
+<pre><code class="language-r">B &lt;- 200 
+predictions &lt;- matrix(
+  NA,
+  nrow = B,
+  ncol = length(k_val)
+)
+
+colnames(predictions) &lt;- paste0(&quot;k_&quot;, k_val)
+for (b in 1:B) {
+
+  X &lt;- matrix(rnorm(n * 3), nrow = n, ncol = 3)
+  epsilon &lt;- rnorm(n, mean = 0, sd = 0.1)
+  f &lt;- 0.5*X[,1] + sin(X[,2]) - 0.3*X[,3]^2
+  Y &lt;- f + epsilon
+  for (j in seq_along(k_val)) {
+    k &lt;- k_val[j]
+    predictions[b, j] &lt;- knn.reg(
+      train = X,
+      test = matrix(x0, nrow = 1),
+      y = Y,
+      k = k
+    )$pred
+  }
+}
+
+prediction_means &lt;- colMeans(predictions)
+bias &lt;- prediction_means - fx0
+bias_squared &lt;- bias^2
+variance &lt;- colMeans(
+  (predictions -
+     matrix(prediction_means,
+            nrow = B,
+            ncol = length(k_val),
+            byrow = TRUE))^2
+)
+MSE &lt;- colMeans(
+  (predictions - fx0)^2)
+results &lt;- data.frame(
+  k = k_val,
+  bias = bias,
+  bias_squared = bias_squared,
+  variance = variance,
+  mse = MSE
+)
+
+results
+
+#plot 
+library(ggplot2)
+
+plot_data &lt;- data.frame(
+  k = k_val,
+  bias_squared = bias_squared,
+  variance = variance,
+  mse = MSE
+)
+
+ggplot(plot_data, aes(x = k)) +
+  geom_line(aes(y = bias_squared, linetype = &quot;Bias Squared&quot;)) +
+  geom_point(aes(y = bias_squared, shape = &quot;Bias Squared&quot;)) +
+  geom_line(aes(y = variance, linetype = &quot;Variance&quot;)) +
+  geom_point(aes(y = variance, shape = &quot;Variance&quot;)) +
+  geom_line(aes(y = mse, linetype = &quot;MSE&quot;)) +
+  geom_point(aes(y = mse, shape = &quot;MSE&quot;)) +
+  labs(
+    x = &quot;k&quot;,
+    y = &quot;Error&quot;,
+    linetype = &quot;Measure&quot;,
+    shape = &quot;Measure&quot;
+  ) +
+  theme_minimal()
+</code></pre>
+<h2 id="question-2-compare-knn-with-lasso">Question 2: Compare KNN with lasso</h2>
+<p>Use the response model from Question 1, including the noise standard deviation $0.1$, but generate $p=30$ covariates. The response still depends only on the first three. Consider these two settings:</p>
+<ul>
+<li><strong>Setting 1:</strong> all 30 covariates are independent standard normal variables.</li>
+<li><strong>Setting 2:</strong> the covariates have a multivariate normal distribution with mean zero and covariance matrix $\boldsymbol\Sigma$, where</li>
+</ul>
+<p>$$
+  \Sigma_{jj}=1,
+  \qquad
+  \Sigma_{jl}=0.8\quad\text{for }j\ne l.
+  $$</p>
+<p>In each setting, generate 400 training observations and 1,000 independent test observations. Fit 5NN using Euclidean distance on the supplied covariate scale. All covariates already have population variance one.</p>
+<p>For lasso, use a linear model containing the 30 covariates and a separately fitted, unpenalized intercept. Follow the Week 4 objective,</p>
+<p>$$
+L_\lambda(\boldsymbol\beta)
+=\frac{1}{2n}\left\lVert
+\widetilde{\mathbf y}-\mathbf X\boldsymbol\beta
+\right\rVert_2^2
++\lambda\lVert\boldsymbol\beta\rVert_1,
+$$</p>
+<p>where $\mathbf X\in\mathbb R^{n\times30}$ contains the centered and standardized covariates and $\widetilde{\mathbf y}$ is the centered training response. Select the penalty by ten-fold cross-validation over 41 logarithmically spaced values from $10^{-4}$ to $1$. Estimate all means and scales using only the training portion of each fold, with divisor equal to that portion's sample size. After selecting the penalty, refit on all training observations and apply the fitted transformations unchanged to the test observations. Do not add nonlinear terms to the lasso model.</p>
+<p>a. Fit both methods in each setting. Use the same training and test data for the two methods within a setting. Report their test MSE values in one table, together with the selected lasso penalty and the number of nonzero lasso slopes. You only need to generate one dataset for each setting; repeated simulations are not required.</p>
+<pre><code class="language-r">set.seed(1)
+n_train &lt;- 400
+n_test &lt;- 1000
+p &lt;- 30
+generate_y &lt;- function(X) {
+  0.5 * X[,1] + sin(X[,2]) - 0.3 * X[,3]^2 +
+    rnorm(nrow(X), mean = 0, sd = 0.1)
+}
+X1_all &lt;- matrix(rnorm((n_train + n_test) * p),
+                 nrow = n_train + n_test,
+                 ncol = p)
+y1_all &lt;- generate_y(X1_all)
+X1_train &lt;- X1_all[1:n_train, ]
+X1_test  &lt;- X1_all[(n_train + 1):(n_train + n_test), ]
+y1_train &lt;- y1_all[1:n_train]
+y1_test  &lt;- y1_all[(n_train + 1):(n_train + n_test)]
+Sigma &lt;- matrix(0.8, nrow = p, ncol = p)
+diag(Sigma) &lt;- 1
+library(MASS)
+X2_all &lt;- mvrnorm(n = n_train + n_test,
+                  mu = rep(0, p),
+                  Sigma = Sigma)
+y2_all &lt;- generate_y(X2_all)
+X2_train &lt;- X2_all[1:n_train, ]
+X2_test  &lt;- X2_all[(n_train + 1):(n_train + n_test), ]
+y2_train &lt;- y2_all[1:n_train]
+y2_test  &lt;- y2_all[(n_train + 1):(n_train + n_test)]
+
+# set 1 
+library(FNN)
+knn1 &lt;- knn.reg(
+  train = X1_train,
+  test = X1_test,
+  y = y1_train,
+  k = 5
+)
+knn1_pred &lt;- knn1$pred
+knn1_mse &lt;- mean((y1_test - knn1_pred)^2)
+knn1_mse
+#set 2 
+knn2 &lt;- knn.reg(
+  train = X2_train,
+  test = X2_test,
+  y = y2_train,
+  k = 5
+)
+knn2_pred &lt;- knn2$pred
+knn2_mse &lt;- mean((y2_test - knn2_pred)^2)
+knn2_mse
+
+lambda_grid &lt;- 10^seq(-4, 0, length.out = 41)
+
+fit_lasso &lt;- function(X, y, seed = 1) {
+
+  set.seed(seed)
+
+  n &lt;- nrow(X)
+
+  folds &lt;- sample(rep(1:10, length.out = n))
+  cv_errors &lt;- matrix(
+    NA,
+    nrow = 10,
+    ncol = length(lambda_grid)
+  )
+  for (fold in 1:10) {
+    train_index &lt;- which(folds != fold)
+    valid_index &lt;- which(folds == fold)
+    X_train &lt;- X[train_index, , drop = FALSE]
+    X_valid &lt;- X[valid_index, , drop = FALSE]
+    y_train &lt;- y[train_index]
+    y_valid &lt;- y[valid_index]
+    x_mean &lt;- colMeans(X_train)
+    y_mean &lt;- mean(y_train)
+    x_scale &lt;- sqrt(
+      colMeans(
+        sweep(X_train, 2, x_mean, &quot;-&quot;)^2
+      )
+    )
+
+    X_train_std &lt;- sweep(
+      X_train, 2, x_mean, &quot;-&quot;
+    )
+
+    X_train_std &lt;- sweep(
+      X_train_std, 2, x_scale, &quot;/&quot;
+    )
+
+    y_train_centered &lt;- y_train - y_mean
+
+    X_valid_std &lt;- sweep(
+      X_valid, 2, x_mean, &quot;-&quot;
+    )
+
+    X_valid_std &lt;- sweep(
+      X_valid_std, 2, x_scale, &quot;/&quot;
+    )
+
+    for (j in seq_along(lambda_grid)) {
+      fit &lt;- glmnet(
+        X_train_std,
+        y_train_centered,
+        alpha = 1,
+        lambda = lambda_grid[j],
+        standardize = FALSE,
+        intercept = FALSE
+      )
+      pred &lt;- y_mean +
+        as.numeric(
+          predict(
+            fit,
+            newx = X_valid_std,
+            s = lambda_grid[j]
+          )
+        )
+
+      cv_errors[fold, j] &lt;- mean(
+        (y_valid - pred)^2
+      )
+    }
+  }
+  mean_cv_error &lt;- colMeans(cv_errors)
+  best_lambda &lt;- lambda_grid[
+    which.min(mean_cv_error)
+  ]
+  x_mean &lt;- colMeans(X)
+  y_mean &lt;- mean(y)
+  x_scale &lt;- sqrt(
+    colMeans(
+      sweep(X, 2, x_mean, &quot;-&quot;)^2
+    )
+  )
+
+  X_std &lt;- sweep(
+    X, 2, x_mean, &quot;-&quot;
+  )
+
+  X_std &lt;- sweep(
+    X_std, 2, x_scale, &quot;/&quot;
+  )
+
+  y_centered &lt;- y - y_mean
+
+  final_fit &lt;- glmnet(
+    X_std,
+    y_centered,
+    alpha = 1,
+    lambda = best_lambda,
+    standardize = FALSE,
+    intercept = FALSE
+  )
+
+  beta &lt;- as.numeric(
+    coef(final_fit, s = best_lambda)
+  )[-1]
+
+  return(list(
+    fit = final_fit,
+    lambda = best_lambda,
+    beta = beta,
+    x_mean = x_mean,
+    x_scale = x_scale,
+    y_mean = y_mean
+  ))
+}
+# setting 1 
+lasso1 &lt;- fit_lasso(
+  X1_train,
+  y1_train,
+  seed = 1
+)
+
+# Standardize test data using training means/scales
+X1_test_std &lt;- sweep(
+  X1_test,
+  2,
+  lasso1$x_mean,
+  &quot;-&quot;
+)
+
+X1_test_std &lt;- sweep(
+  X1_test_std,
+  2,
+  lasso1$x_scale,
+  &quot;/&quot;
+)
+
+lasso1_pred &lt;- lasso1$y_mean +
+  as.numeric(
+    predict(
+      lasso1$fit,
+      newx = X1_test_std,
+      s = lasso1$lambda
+    )
+  )
+lasso1_mse &lt;- mean(
+  (y1_test - lasso1_pred)^2
+)
+lasso1_nonzero &lt;- sum(
+  abs(lasso1$beta) &gt; 1e-8
+)
+lasso1$lambda
+lasso1_nonzero
+lasso1_mse
+#setting 2 
+lasso2 &lt;- fit_lasso(
+  X2_train,
+  y2_train,
+  seed = 1
+)
+X2_test_std &lt;- sweep(
+  X2_test,
+  2,
+  lasso2$x_mean,
+  &quot;-&quot;
+)
+X2_test_std &lt;- sweep(
+  X2_test_std,
+  2,
+  lasso2$x_scale,
+  &quot;/&quot;
+)
+lasso2_pred &lt;- lasso2$y_mean +
+  as.numeric(
+    predict(
+      lasso2$fit,
+      newx = X2_test_std,
+      s = lasso2$lambda
+    )
+  )
+lasso2_mse &lt;- mean(
+  (y2_test - lasso2_pred)^2
+)
+lasso2_nonzero &lt;- sum(
+  abs(lasso2$beta) &gt; 1e-8
+)
+lasso2$lambda
+lasso2_nonzero
+lasso2_mse
+results &lt;- data.frame(
+  Setting = c(
+    &quot;Independent&quot;,
+    &quot;Correlated&quot;
+  ),
+  KNN_MSE = c(
+    knn1_mse,
+    knn2_mse
+  ),
+  Lasso_MSE = c(
+    lasso1_mse,
+    lasso2_mse
+  ),
+  Lasso_Penalty = c(
+    lasso1$lambda,
+    lasso2$lambda
+  ),
+  Nonzero_Lasso_Slopes = c(
+    lasso1_nonzero,
+    lasso2_nonzero
+  )
+)
+results
+</code></pre>
+<p>b. Compare the results between the two settings. Explain how correlation can change the usefulness of Euclidean neighborhoods, and why lasso does not use all covariates in the same way as KNN.</p>
+<p>In setting 1 there are 30 covariates and 27 of tehm add noise to the Euclidian distances that KNN uses. Since it uses all 30 the irrelevent ones could make it not as useful. For setting two the covariates are correlated and hav similar information which can make it better for KNN in this simulation. Lasso performs variable selection and also penalizes each coefficient. KNN does nto do this. </p>
+<p>c. The response model contains $\sin(X_2)$ and $X_3^2$, but the lasso fit uses only linear terms. Explain how this difference affects the comparison. Would the results justify a general claim that correlation always helps KNN, or that one method is always better? Explain why.</p>
+<p>This makes it so that lasso cannot use the nonlinear relationships which could increase the prediction error. KNN is different since it does not assume there is a linear relationship. You can not jsutify this general claim since results heavily depend on different things such and predictors and sample noises</p>
+<h2 id="question-3-observed-dimension-and-latent-dimension">Question 3: Observed dimension and latent dimension</h2>
+<p>The lecture's handwritten digit example shows that KNN can work with many measured covariates. We will use a simulation to investigate why the structure of those covariates matters.</p>
+<p>Let $p=100$ be the number of observed covariates and let $m$ be the number of latent variables. For each observation, generate</p>
+<p>$$
+\mathbf X_i=\mathbf A\mathbf Z_i+\boldsymbol\eta_i,
+\qquad
+Y_i=Z_{i1}+Z_{i2}+\epsilon_i,
+$$</p>
+<p>where $\mathbf A\in\mathbb R^{100\times m}$ has independent entries from Uniform$[-2,2]$. The entries of $\mathbf Z_i\in\mathbb R^m$ and $\boldsymbol\eta_i\in\mathbb R^{100}$, and the scalar $\epsilon_i$, are independent standard normal variables, also independent of $\mathbf A$. Generate $\mathbf A$ once and use it for all training and test observations in that dataset.</p>
+<p>Compare $m=3$ and $m=30$. In each setting, generate 200 training observations and 200 independent test observations. Fit KNN using only the 100 observed covariates in $\mathbf X$, with Euclidean distance on their generated scale. The latent variables in $\mathbf Z$ are used to generate the data but are not available to the fitted model. Consider $k=2,10,18,\ldots,82$.</p>
+<p>a. Generate one dataset for each value of $m$. Fit KNN for every value of $k$ and calculate test MSE. Within a setting, use the same training and test observations for all values of $k$.</p>
+<pre><code class="language-r">library(FNN)
+set.seed(123)
+p &lt;- 100
+n_train &lt;- 200
+n_test &lt;- 200
+k_values &lt;- seq(2, 82, by = 8)
+generate_data &lt;- function(m, n_train, n_test, p = 100) {
+  A &lt;- matrix(
+    runif(p * m, min = -2, max = 2),
+    nrow = p,
+    ncol = m
+  )
+  Z_train &lt;- matrix(
+    rnorm(n_train * m),
+    nrow = n_train,
+    ncol = m
+  )
+  Z_test &lt;- matrix(
+    rnorm(n_test * m),
+    nrow = n_test,
+    ncol = m
+  )
+  eta_train &lt;- matrix(
+    rnorm(n_train * p),
+    nrow = n_train,
+    ncol = p
+  )
+  eta_test &lt;- matrix(
+    rnorm(n_test * p),
+    nrow = n_test,
+    ncol = p
+  )
+  X_train &lt;- Z_train %*% t(A) + eta_train
+  X_test &lt;- Z_test %*% t(A) + eta_test
+  y_train &lt;- Z_train[, 1] +
+    Z_train[, 2] +
+    rnorm(n_train)
+  y_test &lt;- Z_test[, 1] +
+    Z_test[, 2] +
+    rnorm(n_test)
+  list(
+    X_train = X_train,
+    X_test = X_test,
+    y_train = y_train,
+    y_test = y_test
+  )
+}
+data_m3 &lt;- generate_data(
+  m = 3,
+  n_train = n_train,
+  n_test = n_test,
+  p = p
+)
+data_m30 &lt;- generate_data(
+  m = 30,
+  n_train = n_train,
+  n_test = n_test,
+  p = p
+)
+mse_m3 &lt;- numeric(length(k_values))
+mse_m30 &lt;- numeric(length(k_values))
+for (j in seq_along(k_values)) {
+  k &lt;- k_values[j]
+  pred &lt;- knn.reg(
+    train = data_m3$X_train,
+    test = data_m3$X_test,
+    y = data_m3$y_train,
+    k = k
+  )$pred
+  mse_m3[j] &lt;- mean(
+    (data_m3$y_test - pred)^2
+  )
+}
+for (j in seq_along(k_values)) {
+  k &lt;- k_values[j]
+  pred &lt;- knn.reg(
+    train = data_m30$X_train,
+    test = data_m30$X_test,
+    y = data_m30$y_train,
+    k = k
+  )$pred
+  mse_m30[j] &lt;- mean(
+    (data_m30$y_test - pred)^2
+  )
+}
+results_q3a &lt;- data.frame(
+  k = k_values,
+  MSE_m3 = mse_m3,
+  MSE_m30 = mse_m30
+)
+results_q3a
+</code></pre>
+<p>b. Repeat the complete experiment 50 times, generating a new $\mathbf A$ and new observations in each repetition. Plot average test MSE against $k$, with one curve for each value of $m$. These curves compare the specified choices of $k$ in a controlled simulation; they are not a cross-validation procedure for selecting a final model.</p>
+<pre><code class="language-r">set.seed(2)
+B &lt;- 50
+mse_m3_all &lt;- matrix(
+  NA,
+  nrow = B,
+  ncol = length(k_values)
+)
+mse_m30_all &lt;- matrix(
+  NA,
+  nrow = B,
+  ncol = length(k_values)
+)
+for (b in 1:B) {
+  data_m3 &lt;- generate_data(
+    m = 3,
+    n_train = n_train,
+    n_test = n_test,
+    p = p
+  )
+  data_m30 &lt;- generate_data(
+    m = 30,
+    n_train = n_train,
+    n_test = n_test,
+    p = p
+  )
+  for (j in seq_along(k_values)) {
+    k &lt;- k_values[j]
+    pred_m3 &lt;- knn.reg(
+      train = data_m3$X_train,
+      test = data_m3$X_test,
+      y = data_m3$y_train,
+      k = k
+    )$pred
+    mse_m3_all[b, j] &lt;- mean(
+      (data_m3$y_test - pred_m3)^2
+    )
+  }
+  for (j in seq_along(k_values)) {
+    k &lt;- k_values[j]
+    pred_m30 &lt;- knn.reg(
+      train = data_m30$X_train,
+      test = data_m30$X_test,
+      y = data_m30$y_train,
+      k = k
+    )$pred
+    mse_m30_all[b, j] &lt;- mean(
+      (data_m30$y_test - pred_m30)^2
+    )
+  }
+}
+avg_mse_m3 &lt;- colMeans(mse_m3_all)
+avg_mse_m30 &lt;- colMeans(mse_m30_all)
+results_q3b &lt;- data.frame(
+  k = k_values,
+  m3 = avg_mse_m3,
+  m30 = avg_mse_m30
+)
+results_q3b
+plot(
+  k_values,
+  avg_mse_m3,
+  type = &quot;o&quot;,
+  xlab = &quot;k&quot;,
+  ylab = &quot;Average Test MSE&quot;,
+  ylim = range(
+    c(avg_mse_m3, avg_mse_m30)
+  )
+)
+lines(
+  k_values,
+  avg_mse_m30,
+  type = &quot;o&quot;,
+)
+legend(
+  &quot;topright&quot;,
+  legend = c(
+    &quot;m = 3&quot;,
+    &quot;m = 30&quot;
+  ),
+)
+</code></pre>
+<p>c. Both settings have 100 observed covariates, and the response depends on only two latent variables. Explain why their KNN performance can still differ. What role does the noise $\boldsymbol\eta_i$ play, and why are the observed data not confined exactly to an $m$-dimensional linear space?</p>
+<p>they can have different performance since the observed variables are generated from different numbers of latent variablts. The larger the number m the more complex of a structure and noise adds variation to all variables. without noise the observations are in the m-dimensiona; column space of A but noise from them away so the sata is not confined there. </p>
+<h2 id="question-4-classify-handwritten-digits">Question 4: Classify handwritten digits</h2>
+<p>Use <code>zip.train</code> and <code>zip.test</code> from the R package <code>ElemStatLearn</code>, as in the lecture. The package has been retired from the active CRAN repository. If needed, install the <a href="https://cran.r-project.org/src/contrib/Archive/ElemStatLearn/ElemStatLearn_2015.6.26.2.tar.gz">archived package</a> into your usual R library, then load the two datasets. Python users can use the course copies of the same <a href="https://teazrq.github.io/stat432rpy/data/knn/zip-train.csv.gz">training data</a> and <a href="https://teazrq.github.io/stat432rpy/data/knn/zip-test.csv.gz">test data</a>. These compressed CSV files have no headers and are included in the homework ZIP under <code>data/knn</code>. Run the Python code from the folder containing <code>data</code>.</p>
+<p>Each image has $16\times16=256$ pixel values. The first column is the digit label and the remaining columns are the pixel values. Use the first 1,000 rows of <code>zip.train</code> and the first 500 rows of <code>zip.test</code>. Use the original pixel values without standardization, and do not include the digit label in a distance calculation.</p>
+<p>For a test image $\mathbf x_0$ and a training image $\mathbf x_i$, the two distances are</p>
+<p>$$
+d_E(\mathbf x_0,\mathbf x_i)
+=\sqrt{\sum_{j=1}^{256}(x_{0j}-x_{ij})^2},
+\qquad
+d_M(\mathbf x_0,\mathbf x_i)
+=\sum_{j=1}^{256}|x_{0j}-x_{ij}|.
+$$</p>
+<p>a. Write a 5NN classification function that allows either Euclidean or Manhattan distance. For each test image, calculate its distances to the training images directly, find the five nearest, and return the most frequent digit label. Break distance ties by the smaller training row number and voting ties by the smallest digit. Do not use a built-in distance or KNN function for this part.</p>
+<pre><code class="language-r">X_test &lt;- 500
+knn5 &lt;- function(X_train, y_train, X_test, distance = &quot;euclidean&quot;) {
+  predictions &lt;- numeric(nrow(X_test))
+  for (i in 1:nrow(X_test)) {
+    if (distance == &quot;euclidean&quot;) {
+      distances &lt;- sqrt(rowSums((X_train - 
+                                   matrix(X_test[i, ], 
+                                          nrow = nrow(X_train),
+                                          ncol = ncol(X_train),
+                                          byrow = TRUE))^2))
+
+    } else if (distance == &quot;manhattan&quot;) {
+      distances &lt;- rowSums(abs(X_train - 
+                                matrix(X_test[i, ], 
+                                       nrow = nrow(X_train),
+                                       ncol = ncol(X_train),
+                                       byrow = TRUE)))
+
+    } else {
+      stop(&quot;distance must be 'euclidean' or 'manhattan'&quot;)
+    }
+    nearest &lt;- order(distances)[1:5]
+    nearest_labels &lt;- y_train[nearest]
+    vote_counts &lt;- table(factor(nearest_labels, levels = 0:9))
+    predictions[i] &lt;- which.max(vote_counts) - 1
+  }
+  return(predictions)
+}
+</code></pre>
+<p>b. Apply the classifier to all 500 test images using each distance. For each fit, report the test classification error and a $10\times10$ confusion matrix, with rows representing predicted digits and columns representing true digits. Keep all digit labels from 0 through 9 in the matrix, including any with a zero count. Which digits are most often confused with one another?</p>
+<pre><code class="language-r">pred_euclidean &lt;- knn5(
+  X_train, y_train, X_test,
+  distance = &quot;euclidean&quot;
+)
+pred_manhattan &lt;- knn5(
+  X_train, y_train, X_test,
+  distance = &quot;manhattan&quot;
+)
+error_euclidean &lt;- mean(pred_euclidean != y_test)
+error_manhattan &lt;- mean(pred_manhattan != y_test)
+error_euclidean
+error_manhattan
+conf_euclidean &lt;- table(
+  factor(pred_euclidean, levels = 0:9),
+  factor(y_test, levels = 0:9)
+)
+conf_manhattan &lt;- table(
+  factor(pred_manhattan, levels = 0:9),
+  factor(y_test, levels = 0:9)
+)
+conf_euclidean
+conf_manhattan
+rownames(conf_euclidean) &lt;- 0:9
+colnames(conf_euclidean) &lt;- 0:9
+rownames(conf_manhattan) &lt;- 0:9
+colnames(conf_manhattan) &lt;- 0:9
+conf_euclidean
+conf_manhattan
+off_diag_euclidean &lt;- conf_euclidean
+diag(off_diag_euclidean) &lt;- 0
+off_diag_manhattan &lt;- conf_manhattan
+diag(off_diag_manhattan) &lt;- 0
+sort(as.vector(off_diag_euclidean), decreasing = TRUE)[1:10]
+sort(as.vector(off_diag_manhattan), decreasing = TRUE)[1:10]
+</code></pre>
+<p>c. For Euclidean distance, display three incorrectly classified test images, together with their true and predicted labels. Comment on whether the mistakes are visually understandable. Compare the overall results of the two distance measures. Can they have similar total error while making mistakes on different images? Use your predictions to support your answer.</p>
+<pre><code class="language-r">wrong &lt;- which(pred_euclidean != y_test)
+wrong[1:3]
+par(mfrow = c(1, 3))
+for (i in wrong[1:3]) {
+  image(
+    matrix(X_test[i, ], nrow = 28, byrow = TRUE),
+    col = gray.colors(256),
+    axes = FALSE,
+    main = paste(&quot;True:&quot;, y_test[i],
+                 &quot;Predicted:&quot;, pred_euclidean[i])
+  )
+}
+image(
+  t(matrix(X_test[i, ], nrow = 28, byrow = TRUE))[ , 28:1],
+  col = gray.colors(256),
+  axes = FALSE,
+  main = paste(&quot;True:&quot;, y_test[i],
+               &quot;Predicted:&quot;, pred_euclidean[i])
+)
+data.frame(
+  Distance = c(&quot;Euclidean&quot;, &quot;Manhattan&quot;),
+  Error = c(error_euclidean, error_manhattan)
+)
+same_predictions &lt;- mean(pred_euclidean == pred_manhattan)
+same_wrong &lt;- sum(
+  pred_euclidean != y_test &amp;
+  pred_manhattan != y_test
+)
+different_wrong &lt;- sum(
+  (pred_euclidean != y_test) !=
+  (pred_manhattan != y_test)
+)
+same_predictions
+same_wrong
+different_wrong
+</code></pre>
+<p>They have similar classification error but both make bistakes on different test images. comparing showd they can disagree when their error rates are close. They can select different 5NN and then make different predictions</p>
+<h2 id="question-5-create-a-plot-formatting-skill">Question 5: Create a plot-formatting skill</h2>
+<p>Create a short <code>SKILL.md</code> file for improving the formatting of STAT 432 homework plots. You may use AI to help write it.</p>
+<p>a. Include a title, a description, and a few formatting rules. The description should limit the skill to STAT 432 homework plot improvements and require an explicit request to use it. Your rules should address margins, titles, axes, labels, colors, and sizes for plots produced in R or Python. Keep them portable: do not refer to specific homework questions.</p>
+<p>b. Ask your agent to install the skill. Explicitly call it to improve the plot from Question 1, then compare the original and revised versions. Do you like the changes? You may revise the skill and test it a couple more times, or uninstall it if it remains unhelpful.</p>
+<p>c. Append your final <code>SKILL.md</code> content to your submission and briefly explain your choices and experience.</p>
+</body>
+</html>
