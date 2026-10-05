@@ -3,7 +3,7 @@ title: "Homework 06"
 pagetitle: "Homework 06"
 body-classes: "lecture-page practice-page"
 format:
-  html:
+  pdf:
     embed-resources: true
     html-math-method: mathml
     page-layout: full
