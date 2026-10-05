@@ -1,0 +1,256 @@
+---
+title: "Homework 06"
+pagetitle: "Homework 06"
+body-classes: "lecture-page practice-page"
+format:
+  html:
+    embed-resources: true
+    html-math-method: mathml
+    page-layout: full
+    toc: true
+    toc-location: body
+    toc-title: "On this page"
+    toc-depth: 2
+---
+
+## Question 1: Compare KNN and logistic regression
+
+Use [breast-cancer.csv](data/breast-cancer.csv), which contains 569 cases from the [Wisconsin Diagnostic Breast Cancer dataset](https://archive.ics.uci.edu/dataset/17/breast%2Bcancer%2Bwisconsin%2Bdiagnostic). Predict `y` (1 for malignant and 0 for benign) using `mean_radius`, `mean_texture`, and `mean_smoothness`.
+
+Set a random seed and randomly split the observations into 70% training and 30% test data. Use the same split for every model. Standardize the predictors using the training means and standard deviations, and apply the same transformations to the test data.
+
+Fit ordinary logistic regression with an intercept and no penalty, and KNN with Euclidean distance, equal neighbor weights, and
+
+$$
+k\in\{5,15,25,35,45\}.
+$$
+
+Using the estimated probabilities for `y = 1` on the test data, plot all six ROC curves in one figure and report their AUC values. Which of the six fitted models do you prefer? Give a brief justification based on your results.
+```{r}
+library(tidyverse)
+library(class)
+library(pROC)
+
+breastcancer <- breast_cancer
+set.seed(432)
+data <- breastcancer %>%
+  select(y, mean_radius, mean_texture, mean_smoothness)
+n <- nrow(data)
+trainindex <- sample(1:n, size = floor(0.70 * n))
+
+train <- data[trainindex, ]
+test <- data[-trainindex, ]
+
+predictors <- c("mean_radius", "mean_texture", "mean_smoothness")
+trainmeans <- sapply(train[predictors], mean)
+trainsds <- sapply(train[predictors], sd)
+
+trainx <- scale(
+  train[predictors],
+  center = trainmeans,
+  scale = trainsds
+)
+
+testx <- scale(
+  test[predictors],
+  center = trainmeans,
+  scale = trainsds
+)
+
+trainy <- train$y
+testy <- test$y
+
+logisticmodel <- glm(
+  y ~ mean_radius + mean_texture + mean_smoothness,
+  data = train,
+  family = binomial()
+)
+logisticprob <- predict(
+  logistic_model,
+  newdata = test,
+  type = "response"
+)
+kvals <- c(5, 15, 25, 35, 45)
+knnprobs <- list()
+for (k in kvals) {
+  knnfit <- knn(
+    train = trainx,
+    test = testx,
+    cl = factor(trainy),
+    k = k,
+    prob = TRUE
+  )
+  p <- attr(knnfit, "prob")
+  knnprobs[[as.character(k)]] <- ifelse(
+    knnfit == 1,
+    p,
+    1 - p
+  )
+}
+
+roclogistic <- roc(testy, logisticprob, quiet = TRUE)
+rocknn5 <- roc(testy, knnprobs[["5"]], quiet = TRUE)
+rocknn15 <- roc(testy, knnprobs[["15"]], quiet = TRUE)
+rocknn25 <- roc(testy, knnprobs[["25"]], quiet = TRUE)
+rocknn35 <- roc(testy, knnprobs[["35"]], quiet = TRUE)
+rocknn45 <- roc(testy, knnprobs[["45"]], quiet = TRUE)
+aucvalues <- c(
+  Logistic = auc(roclogistic),
+  KNN5 = auc(rocknn5),
+  KNN15 = auc(rocknn15),
+  KNN25 = auc(rocknn25),
+  KNN35 = auc(rocknn35),
+  KNN45 = auc(rocknn45)
+)
+
+round(aucvalues, 4)
+plot(
+  roclogistic,
+  main = "Logistic Regression vs KNN",
+  xlab = "False Positive Rate",
+  ylab = "True Positive Rate"
+)
+abline(a = 0, b = 1, lty = 2)
+
+
+```
+
+I would prefer the logistic regression model because it had the highest AUC of 0.9746. This means logistic regression performed the best at distinguishing malignant cases from benign cases on the test data.
+
+##Question 2: Training and test ROC curves
+
+Use the same data, training/test split, and standardization as in Question 1. Fit KNN with Euclidean distance, equal neighbor weights, and
+
+$$
+k\in\{1,3,5,10,20\}.
+$$
+
+Use each fitted model to estimate probabilities for both the training and test observations. For training predictions, include each observation itself among its $k$ nearest neighbors.
+
+For each $k$, use a separate panel to show the training and test ROC curves together. Report both AUC values.
+
+Explain the difference between training and test performance and how it changes with $k$. In particular, explain what happens at $k=1$ and why training performance may not reflect performance on new observations.
+```{r}
+set.seed(432)
+data <- data %>%
+  select(y, mean_radius, mean_texture, mean_smoothness)
+n <- nrow(data)
+trainindex <- sample(
+  1:n,
+  size = floor(0.70 * n)
+)
+train <- data[trainindex, ]
+test <- data[-trainindex, ]
+predictors <- c(
+  "mean_radius",
+  "mean_texture",
+  "mean_smoothness"
+)
+trainmeans <- sapply(train[predictors], mean)
+trainsds <- sapply(train[predictors], sd)
+trainx <- scale(
+  train[predictors],
+  center = trainmeans,
+  scale = trainsds
+)
+testx <- scale(
+  test[predictors],
+  center = trainmeans,
+  scale = trainsds
+)
+trainy <- train$y
+testy <- test$y
+kvalues <- c(1, 3, 5, 10, 20)
+aucresults <- data.frame(
+  k = kvalues,
+  TrainingAUC = NA,
+  TestAUC = NA
+)
+par(mfrow = c(2, 3))
+for (i in seq_along(kvalues)) {
+  k <- kvalues[i]
+  trainknn <- knn(
+    train = trainx,
+    test = trainx,
+    cl = factor(trainy),
+    k = k,
+    prob = TRUE
+  )
+  trainp <- attr(trainknn, "prob")
+  trainprob <- ifelse(
+    trainknn == 1,
+    trainp,
+    1 - trainp
+  )
+  testknn <- knn(
+    train = trainx,
+    test = testx,
+    cl = factor(trainy),
+    k = k,
+    prob = TRUE
+  )
+ testp <- attr(testknn, "prob")
+  testprob <- ifelse(
+    testknn == 1,
+    testp,
+    1 - testp
+  )
+  trainroc <- roc(
+    trainy,
+    trainprob,
+    quiet = TRUE
+  )
+  testroc <- roc(
+    testy,
+    testprob,
+    quiet = TRUE
+  )
+    aucresults$TrainingAUC[i] <- as.numeric(auc(trainroc))
+  aucresults$TestAUC[i] <- as.numeric(auc(testroc))
+    plot(
+    trainroc,
+    main = paste("KNN, k =", k),
+    xlab = "False Positive Rate",
+    ylab = "True Positive Rate"
+  )
+  lines(
+    testroc,
+    lty = 2
+  )
+  abline(
+    a = 0,
+    b = 1,
+    lty = 3
+  )
+  legend(
+    "bottomright",
+    legend = c(
+      paste0("Training (AUC = ",
+             round(auc(trainroc), 4), ")"),
+      paste0("Test (AUC = ",
+             round(auc(testroc), 4), ")")
+    ),
+    lty = c(1, 2),
+    cex = 0.8
+  )
+}
+par(mfrow = c(1, 1))
+aucresults
+```
+## Question 3: Peer evaluation of Homework 5
+
+You will receive two Homework 5 submissions to review. The instructor's GitHub account, **rqzhu-aide**, will open a **GitHub Issue** in the repository containing your Homework 5 submission. It will contain links to two other students' repositories, where you can find their submitted homework reports.
+
+Open your repository's **Issues** tab on GitHub to find the assignment. You may ask AI to explain GitHub Issues or help you locate the assignment.
+
+Choose **one specific mistake or item for improvement** from any question in either report.
+
+1. **Identify the mistake or item for improvement.** State which report and question you selected, and briefly describe what is wrong or could be improved. Examples include incorrect code, a calculation error, a misinterpretation of results, a plot that could communicate the findings more clearly, or anything else you think could be done better.
+
+2. **Explain your assessment.** Quote the relevant text, code, or figure caption exactly. Explain why the selected answer is incorrect or how it could be improved, referring to its reasoning, calculations, code, figures, or interpretation. **Complete this part yourself, without AI assistance.**
+
+3. **Provide a correction.** Write a corrected or improved answer to the selected question, including any calculations, code, or figures needed.
+
+After completing your review, **open a GitHub Issue in the repository containing the report you selected**. Identify the report and question, and include your assessment and a detailed revision plan explaining what the author should change and why. Include a link to your posted GitHub Issue in your Homework 6 answer.
+
+https://github.com/ec-03/stat432-fall2026/issues/2 
